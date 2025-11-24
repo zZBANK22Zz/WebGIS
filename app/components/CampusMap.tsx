@@ -47,6 +47,7 @@ export default function CampusMap() {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
   const [routePath, setRoutePath] = useState<google.maps.LatLng[]>([]);
+  const [isRouteInfoExpanded, setIsRouteInfoExpanded] = useState<boolean>(true);
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const streetViewServiceRef = useRef<google.maps.StreetViewService | null>(null);
@@ -368,16 +369,45 @@ export default function CampusMap() {
       </div>
 
       {/* Route Info */}
-      <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 z-10 bg-white rounded-xl shadow-xl border border-gray-100 p-4 sm:p-5 max-w-[calc(100%-1rem)] sm:max-w-sm backdrop-blur-sm bg-white/98">
-        <div className="flex items-start gap-3 mb-3">
+      <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 z-10 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden backdrop-blur-sm bg-white/98 transition-all duration-300 max-w-[calc(100%-1rem)] sm:max-w-sm">
+        {/* Header with Toggle Button */}
+        <div 
+          className="flex items-center gap-3 p-4 sm:p-5 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => setIsRouteInfoExpanded(!isRouteInfoExpanded)}
+        >
           <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-sm sm:text-base text-gray-900 mb-1">{routeInfo.name}</h3>
-            <p className="text-xs text-gray-500 mb-3">{routeInfo.nameEn}</p>
+            <h3 className="font-bold text-sm sm:text-base text-gray-900">{routeInfo.name}</h3>
+            {isRouteInfoExpanded && (
+              <p className="text-xs text-gray-500 mt-0.5">{routeInfo.nameEn}</p>
+            )}
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsRouteInfoExpanded(!isRouteInfoExpanded);
+            }}
+            className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+            aria-label={isRouteInfoExpanded ? 'ย่อ' : 'ขยาย'}
+          >
+            <svg 
+              className={`w-5 h-5 text-gray-600 transition-transform duration-300 ${isRouteInfoExpanded ? '' : 'rotate-180'}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Expandable Content */}
+        {isRouteInfoExpanded && (
+          <div className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-3 animate-in slide-in-from-top-2 duration-300">
             <div className="space-y-2">
               {routeInfo.stops.map((stop, index) => {
                 const location = locations.find(loc => loc.id === stop.id);
@@ -400,7 +430,7 @@ export default function CampusMap() {
                 );
               })}
             </div>
-            <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
+            <div className="pt-3 border-t border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-gray-600">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -414,14 +444,14 @@ export default function CampusMap() {
                 <span>{routeInfo.distance}</span>
               </div>
             </div>
-            <div className="mt-2 pt-2 border-t border-gray-100">
+            <div className="pt-2 border-t border-gray-100">
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <div className="w-3 h-0.5 bg-blue-500 rounded"></div>
                 <span>เส้นทางแนะนำบนแผนที่</span>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
