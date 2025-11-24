@@ -22,11 +22,25 @@ const calculateCenter = () => {
 
 const center = calculateCenter();
 
-const mapOptions = {
-  zoom: 16, // ปรับ zoom level ให้เหมาะสมกับพื้นที่ใหม่
-  mapTypeControl: true,
-  streetViewControl: true, // เปิดใช้ Street View control
+// ประเภทแผนที่ที่รองรับ
+const mapTypes = [
+  { id: 'roadmap', name: 'แผนที่', nameEn: 'Roadmap', icon: '🗺️' },
+  { id: 'satellite', name: 'ภาพดาวเทียม', nameEn: 'Satellite', icon: '🛰️' },
+  { id: 'hybrid', name: 'ผสม', nameEn: 'Hybrid', icon: '🌍' },
+  { id: 'terrain', name: 'ภูมิประเทศ', nameEn: 'Terrain', icon: '⛰️' },
+] as const;
+
+type MapTypeId = typeof mapTypes[number]['id'];
+
+const libraries: ('places' | 'drawing' | 'geometry' | 'visualization')[] = ['places', 'geometry'];
+
+// สร้าง map options function ที่รับ mapTypeId
+const getMapOptions = (mapTypeId: MapTypeId): google.maps.MapOptions => ({
+  zoom: 16,
+  mapTypeControl: false, // ปิด default control เพราะเรามี custom control แล้ว
+  streetViewControl: true,
   fullscreenControl: true,
+  mapTypeId: mapTypeId as google.maps.MapTypeId,
   styles: [
     {
       featureType: 'poi',
@@ -34,9 +48,7 @@ const mapOptions = {
       stylers: [{ visibility: 'off' }],
     },
   ],
-};
-
-const libraries: ('places' | 'drawing' | 'geometry' | 'visualization')[] = ['places', 'geometry'];
+});
 
 export default function CampusMap() {
   const { isLoaded, loadError } = useLoadScript({
@@ -48,6 +60,9 @@ export default function CampusMap() {
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
   const [routePath, setRoutePath] = useState<google.maps.LatLng[]>([]);
   const [isRouteInfoExpanded, setIsRouteInfoExpanded] = useState<boolean>(true);
+  const [isMapTypeExpanded, setIsMapTypeExpanded] = useState<boolean>(true);
+  const [isStreetViewVisible, setIsStreetViewVisible] = useState<boolean>(false);
+  const [mapTypeId, setMapTypeId] = useState<MapTypeId>('roadmap');
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const streetViewServiceRef = useRef<google.maps.StreetViewService | null>(null);
@@ -165,10 +180,31 @@ export default function CampusMap() {
     );
   }, [isLoaded]);
 
+  // สร้าง map options ที่ใช้ mapTypeId จาก state
+  const mapOptions = useMemo(() => getMapOptions(mapTypeId), [mapTypeId]);
+
   // Callback สำหรับเมื่อแผนที่โหลดเสร็จ
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
-  }, []);
+    // ตั้งค่า map type เริ่มต้น
+    map.setMapTypeId(mapTypeId as google.maps.MapTypeId);
+    
+    // ตรวจสอบสถานะ Street View
+    const panorama = map.getStreetView();
+    setIsStreetViewVisible(panorama.getVisible());
+    
+    // เพิ่ม listener เพื่อตรวจสอบเมื่อ Street View เปิด/ปิด
+    panorama.addListener('visible_changed', () => {
+      setIsStreetViewVisible(panorama.getVisible());
+    });
+  }, [mapTypeId]);
+
+  // อัปเดต map type เมื่อมีการเปลี่ยนแปลง
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.setMapTypeId(mapTypeId as google.maps.MapTypeId);
+    }
+  }, [mapTypeId]);
 
   if (loadError) {
     return (
@@ -315,26 +351,85 @@ export default function CampusMap() {
           )}
         </GoogleMap>
 
-      {/* Street View Toggle Button */}
-      <div className="absolute top-24 right-2 sm:right-4 z-10">
-        <button
-          onClick={() => {
-            if (mapRef.current) {
-              const panorama = mapRef.current.getStreetView();
-              panorama.setVisible(!panorama.getVisible());
-            }
-          }}
-          className="bg-white rounded-lg shadow-lg p-2.5 sm:p-3 hover:bg-gray-50 transition-colors flex items-center gap-2 group"
-          title="เปิด/ปิด Street View"
+      {/* Map Type Selector */}
+      <div className="absolute top-24 right-2 sm:right-4 z-10 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden backdrop-blur-sm bg-white/98 transition-all duration-300">
+        {/* Header with Toggle Button */}
+        <div 
+          className="flex items-center gap-2 p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => setIsMapTypeExpanded(!isMapTypeExpanded)}
         >
-          <svg className="w-5 h-5 text-gray-700 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <span className="hidden sm:inline text-xs sm:text-sm font-medium text-gray-700 group-hover:text-blue-600">
-            Street View
-          </span>
-        </button>
+          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+            <span className="text-sm">
+              {mapTypes.find(mt => mt.id === mapTypeId)?.icon || '🗺️'}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xs font-semibold text-gray-800 truncate">
+              {mapTypes.find(mt => mt.id === mapTypeId)?.name || 'ประเภทแผนที่'}
+            </h3>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMapTypeExpanded(!isMapTypeExpanded);
+            }}
+            className="flex-shrink-0 p-1 rounded-lg hover:bg-gray-200 transition-colors"
+            aria-label={isMapTypeExpanded ? 'ย่อ' : 'ขยาย'}
+          >
+            <svg 
+              className={`w-4 h-4 text-gray-600 transition-transform duration-300 ${isMapTypeExpanded ? '' : 'rotate-180'}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Expandable Content */}
+        {isMapTypeExpanded && (
+          <div className="px-3 pb-3 space-y-1 animate-in slide-in-from-top-2 duration-300">
+            {mapTypes.map((mapType) => (
+              <button
+                key={mapType.id}
+                onClick={() => setMapTypeId(mapType.id)}
+                className={`w-full text-left px-3 py-2 rounded text-xs sm:text-sm transition-colors flex items-center gap-2 ${
+                  mapTypeId === mapType.id
+                    ? 'bg-blue-100 text-blue-800 font-medium'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <span className="text-base">{mapType.icon}</span>
+                <span className="truncate">{mapType.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Exit Street View Button - แสดงเมื่อ Street View เปิดอยู่ */}
+      {isStreetViewVisible && (
+        <div className="absolute top-24 right-2 sm:right-4 z-20 mt-[80px] sm:mt-[100px]">
+          <button
+            onClick={() => {
+              if (mapRef.current) {
+                const panorama = mapRef.current.getStreetView();
+                panorama.setVisible(false);
+              }
+            }}
+            className="bg-white rounded-lg shadow-lg px-4 py-2.5 hover:bg-gray-50 transition-colors flex items-center gap-2 group border border-gray-200"
+            title="ออกจาก Street View"
+          >
+            <svg className="w-5 h-5 text-gray-700 group-hover:text-red-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span className="text-xs sm:text-sm font-medium text-gray-700 group-hover:text-red-600">
+              ออกจาก Street View
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Category Filter */}
       <div className="absolute top-24 left-2 sm:left-4 z-10 bg-white rounded-lg shadow-lg p-3 sm:p-4 space-y-2 max-w-[180px] sm:max-w-none">
