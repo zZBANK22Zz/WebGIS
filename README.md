@@ -1,24 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PSU Phuket Virtual Campus Tour
 
-## Getting Started
+แผนที่ออนไลน์และ Virtual Campus Tour สำหรับมหาวิทยาลัยสงขลานครินทร์ วิทยาเขตภูเก็ต (Prince of Songkla University, Phuket Campus)
 
-First, run the development server:
+## คุณสมบัติ
+
+- ✅ แผนที่ออนไลน์แบบ Interactive ด้วย Google Maps
+- ✅ หมวดหมู่สถานที่ 2 ประเภท (อาคารเรียน และ บริการนักศึกษา)
+- ✅ สถานที่มากกว่า 5 จุดพร้อมข้อมูลครบถ้วน
+- ✅ เส้นทางแนะนำสำหรับการเดินเที่ยวชม
+- ✅ Popup แสดงข้อมูลสถานที่ รูปภาพ เวลาเปิด-ปิด และลิงก์เว็บไซต์
+- ✅ รองรับการใช้งานบนมือถือ
+- ✅ ออกแบบเป็นทางการเหมาะกับงานวิชาการ
+
+## การติดตั้งและใช้งาน
+
+### 1. ติดตั้ง Dependencies
+
+```bash
+npm install
+```
+
+### 2. ตั้งค่า Google Maps API Key
+
+สร้างไฟล์ `.env.local` ในโฟลเดอร์ root ของโปรเจกต์:
+
+```env
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_api_key_here
+```
+
+**วิธีรับ API Key:**
+1. ไปที่ [Google Cloud Console](https://console.cloud.google.com/)
+2. สร้างโปรเจกต์ใหม่หรือเลือกโปรเจกต์ที่มีอยู่
+3. เปิดใช้งาน Maps JavaScript API
+4. สร้าง API Key และคัดลอกมาใส่ในไฟล์ `.env.local`
+
+### 3. รัน Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+เปิดเบราว์เซอร์ไปที่ [http://localhost:3000](http://localhost:3000) เพื่อดูผลลัพธ์
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## โครงสร้างโปรเจกต์
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/
+├── components/
+│   └── CampusMap.tsx      # คอมโพเนนต์แผนที่หลัก
+├── data/
+│   └── locations.ts       # ข้อมูลสถานที่และหมวดหมู่
+├── page.tsx               # หน้าหลัก
+├── layout.tsx             # Layout หลัก
+└── globals.css            # สไตล์ CSS
+```
+
+## เทคโนโลยีที่ใช้
+
+- **Next.js 16** - React Framework
+- **TypeScript** - Type Safety
+- **Tailwind CSS** - Styling
+- **@react-google-maps/api** - Google Maps Integration
 
 ## Learn More
 
