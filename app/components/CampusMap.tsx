@@ -25,7 +25,7 @@ const center = calculateCenter();
 const mapOptions = {
   zoom: 16, // ปรับ zoom level ให้เหมาะสมกับพื้นที่ใหม่
   mapTypeControl: true,
-  streetViewControl: false,
+  streetViewControl: true, // เปิดใช้ Street View control
   fullscreenControl: true,
   styles: [
     {
@@ -48,6 +48,8 @@ export default function CampusMap() {
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all');
   const [routePath, setRoutePath] = useState<google.maps.LatLng[]>([]);
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const streetViewServiceRef = useRef<google.maps.StreetViewService | null>(null);
 
   const filteredLocations = useMemo(() => {
     if (selectedCategory === 'all') return locations;
@@ -125,8 +127,47 @@ export default function CampusMap() {
   useEffect(() => {
     if (isLoaded && window.google) {
       calculateRoute();
+      // สร้าง StreetViewService
+      if (!streetViewServiceRef.current) {
+        streetViewServiceRef.current = new google.maps.StreetViewService();
+      }
     }
   }, [isLoaded, calculateRoute]);
+
+  // ฟังก์ชันเปิด Street View ที่ตำแหน่งที่เลือก
+  const openStreetView = useCallback((position: { lat: number; lng: number }) => {
+    if (!isLoaded || !window.google || !mapRef.current) return;
+
+    if (!streetViewServiceRef.current) {
+      streetViewServiceRef.current = new google.maps.StreetViewService();
+    }
+
+    const panorama = mapRef.current.getStreetView();
+    const svPosition = new google.maps.LatLng(position.lat, position.lng);
+
+    streetViewServiceRef.current.getPanorama(
+      { location: svPosition, radius: 50 },
+      (data, status) => {
+        if (status === google.maps.StreetViewStatus.OK) {
+          panorama.setPosition(svPosition);
+          panorama.setPov({
+            heading: 270,
+            pitch: 0,
+          });
+          panorama.setVisible(true);
+        } else {
+          // ถ้าไม่มี Street View ที่ตำแหน่งนี้ ให้เปิดในหน้าต่างใหม่
+          const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${position.lat},${position.lng}`;
+          window.open(streetViewUrl, '_blank');
+        }
+      }
+    );
+  }, [isLoaded]);
+
+  // Callback สำหรับเมื่อแผนที่โหลดเสร็จ
+  const onMapLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+  }, []);
 
   if (loadError) {
     return (
@@ -156,6 +197,7 @@ export default function CampusMap() {
         mapContainerStyle={mapContainerStyle}
         center={center}
         options={mapOptions}
+        onLoad={onMapLoad}
       >
         {/* เส้นทางแนะนำ - เส้นเงาเพื่อความสวยงาม */}
         {routePath.length > 0 && (
@@ -242,16 +284,28 @@ export default function CampusMap() {
                           <pre className="whitespace-pre-wrap mt-1">{loc.openingHours}</pre>
                         </div>
                       )}
-                      {loc.website && (
-                        <a
-                          href={loc.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:underline block"
+                      <div className="flex gap-2 pt-2">
+                        {loc.website && (
+                          <a
+                            href={loc.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline flex-1 text-center py-1.5 px-2 rounded bg-blue-50 hover:bg-blue-100 transition-colors"
+                          >
+                            ดูข้อมูลเพิ่มเติม
+                          </a>
+                        )}
+                        <button
+                          onClick={() => openStreetView(loc.position)}
+                          className="text-xs text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 px-3 py-1.5 rounded shadow-sm transition-all flex items-center gap-1"
+                          title="เปิด Street View"
                         >
-                          ดูข้อมูลเพิ่มเติม →
-                        </a>
-                      )}
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Street View
+                        </button>
+                      </div>
                     </div>
                   );
                 })()}
@@ -259,6 +313,27 @@ export default function CampusMap() {
             </InfoWindow>
           )}
         </GoogleMap>
+
+      {/* Street View Toggle Button */}
+      <div className="absolute top-24 right-2 sm:right-4 z-10">
+        <button
+          onClick={() => {
+            if (mapRef.current) {
+              const panorama = mapRef.current.getStreetView();
+              panorama.setVisible(!panorama.getVisible());
+            }
+          }}
+          className="bg-white rounded-lg shadow-lg p-2.5 sm:p-3 hover:bg-gray-50 transition-colors flex items-center gap-2 group"
+          title="เปิด/ปิด Street View"
+        >
+          <svg className="w-5 h-5 text-gray-700 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <span className="hidden sm:inline text-xs sm:text-sm font-medium text-gray-700 group-hover:text-blue-600">
+            Street View
+          </span>
+        </button>
+      </div>
 
       {/* Category Filter */}
       <div className="absolute top-24 left-2 sm:left-4 z-10 bg-white rounded-lg shadow-lg p-3 sm:p-4 space-y-2 max-w-[180px] sm:max-w-none">
